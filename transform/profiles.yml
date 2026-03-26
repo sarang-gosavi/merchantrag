@@ -1,0 +1,26 @@
+merchantrag:
+  target: dev
+  outputs:
+
+    # ── Production: Snowflake ─────────────────────────────────────────────
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'SYSADMIN') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'MERCHANTRAG_DB') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'PUBLIC') }}"
+      threads: 4
+      client_session_keep_alive: false
+
+    # ── Development: SQLite (via dbt-sqlite adapter) ──────────────────────
+    dev:
+      type: sqlite
+      threads: 1
+      database: merchantrag
+      schema: main
+      schemas_and_paths:
+        main: "{{ env_var('LOCAL_DB_PATH', './data/merchantrag.sqlite') }}"
+      schema_directory: "{{ env_var('LOCAL_DB_PATH', './data/merchantrag.sqlite') | dirname }}"

@@ -1,0 +1,34 @@
+name: 'merchantrag'
+version: '1.0.0'
+config-version: 2
+
+profile: 'merchantrag'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  merchantrag:
+    raw:
+      +materialized: view
+      +schema: raw
+    staging:
+      +materialized: table
+      +schema: staging
+    mart:
+      +materialized: table
+      +schema: mart
+
+vars:
+  min_review_count: 5
+  lookback_days: 90
+  velocity_window_days: 30

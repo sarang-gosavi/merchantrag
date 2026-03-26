@@ -1,0 +1,81 @@
+version: 2
+
+# ── Sources ────────────────────────────────────────────────────────────────────
+sources:
+  - name: raw
+    description: "Raw merchant transactions loaded via Kafka consumer or batch loader"
+    tables:
+      - name: raw_merchant_transactions
+        description: "Raw Kafka-ingested merchant transaction events"
+        columns:
+          - name: transaction_id
+            description: "UUID primary key"
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests: [not_null]
+          - name: mcc_code
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['5812','5813','5814','5411','5912','7011','5941','5921','5999','7299','7996','4111']
+          - name: transaction_amount
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: "> 0"
+          - name: acceptance_method
+            tests:
+              - accepted_values:
+                  values: ['chip','contactless','online','swipe','mobile_pay','keyed']
+
+# ── Models ─────────────────────────────────────────────────────────────────────
+models:
+  - name: raw_merchant_transactions
+    description: "Raw view over warehouse ingestion table"
+    columns:
+      - name: transaction_id
+        tests: [unique, not_null]
+
+  - name: stg_merchant_transactions
+    description: "Cleaned, typed, deduplicated staging model. Adds value tier and quarter."
+    columns:
+      - name: transaction_id
+        tests: [unique, not_null]
+      - name: merchant_id
+        tests: [not_null]
+      - name: transaction_amount
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0 AND transaction_amount < 100000"
+      - name: mcc_code
+        tests: [not_null]
+      - name: transaction_value_tier
+        tests:
+          - accepted_values:
+              values: ['low', 'mid', 'high']
+      - name: transaction_quarter
+        tests:
+          - accepted_values:
+              values: ['Q1','Q2','Q3','Q4']
+
+  - name: mart_merchant_intelligence
+    description: >
+      One-row-per-merchant aggregated intelligence mart.
+      Used as the primary data source for RAG embeddings.
+      Contains transaction aggregates, acceptance method distribution,
+      quarterly breakdown, anomaly flags, and review metrics.
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]
+      - name: avg_transaction_amount
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: is_high_volume_anomaly
+        description: "True if merchant avg transaction > 2 std devs above global mean"
+      - name: is_q4_spending_spike
+        description: "True if Q4 transactions > 1.5x average of Q1-Q3"
+      - name: z_score_amount
+        description: "Z-score of merchant avg transaction vs global distribution"
